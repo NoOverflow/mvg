@@ -1,3 +1,3 @@
 pub mod chunk;
-pub mod instance;
+pub mod transform;
 pub mod voxel;

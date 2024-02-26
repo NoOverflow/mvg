@@ -1,9 +1,14 @@
-use std::iter;
+use std::{borrow::Cow, iter};
+use wgpu::{Adapter, Device, Surface, TextureFormat};
 use winit::{event::*, window::Window};
 
 use crate::world::World;
 
-use super::renderable::Renderable;
+use super::{primitives::vertex::Vertex, renderable::Renderable};
+
+pub struct Pipeline {
+    render_pipeline: wgpu::RenderPipeline,
+}
 
 pub struct State {
     surface: wgpu::Surface,
@@ -11,26 +16,95 @@ pub struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pipeline: crate::rendering::pipeline::Pipeline,
     render_pass_data: crate::rendering::renderable::RenderPassData,
-    bind_group: wgpu::BindGroup,
-    // The window must be declared after the surface so
-    // it gets dropped after it as the surface contains
-    // unsafe references to the window's resources.
+
     window: Window,
     world: crate::World,
+    pipeline: Pipeline,
+
+    // Bind groups
+    projection_bind_group: wgpu::BindGroup,
 }
 
 impl State {
+    fn create_pipeline(
+        device: &wgpu::Device,
+        swpchn_format: TextureFormat,
+        shader_data: &'static str,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+    ) -> Pipeline {
+        let shader_module: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: None,
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_data)),
+            });
+
+        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: bind_group_layouts,
+            push_constant_ranges: &[],
+        });
+
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader_module,
+                entry_point: "vs_main",
+                buffers: &[Vertex::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader_module,
+                entry_point: "fs_main",
+                targets: &[Some(swpchn_format.into())],
+            }),
+            primitive: wgpu::PrimitiveState {
+                cull_mode: Some(wgpu::Face::Back),
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+        });
+
+        Pipeline { render_pipeline }
+    }
+
+    fn configure_surface(
+        size: winit::dpi::PhysicalSize<u32>,
+        device: &Device,
+        surface: &Surface,
+        adapter: &Adapter,
+    ) -> wgpu::SurfaceConfiguration {
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .copied()
+            .find(|f| f.is_srgb())
+            .unwrap_or(surface_caps.formats[0]);
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: surface_caps.present_modes[0],
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
+        };
+
+        surface.configure(&device, &config);
+        config
+    }
+
+    fn create_bind_groups() {}
+
     pub async fn new(window: Window, world: World) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
-
-        // The surface needs to live as long as the window that created it.
-        // State owns the window so this should be safe.
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -53,39 +127,38 @@ impl State {
             .unwrap();
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(surface_caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: size.width,
-            height: size.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
-        };
-        let pipeline: crate::rendering::pipeline::Pipeline =
-            crate::rendering::pipeline::Pipeline::new(
-                &device,
-                swapchain_format,
-                include_str!("shaders/default.wgsl"),
-            );
         let render_pass_data = crate::rendering::renderable::RenderPassData::new(&device);
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &pipeline.render_pipeline.get_bind_group_layout(0),
+        let config = Self::configure_surface(size, &device, &surface, &adapter);
+
+        let projection_buffer_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(64),
+                    },
+                    count: None,
+                }],
+            });
+        let projection_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &projection_buffer_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: render_pass_data.transform_buffer.as_entire_binding(),
+                resource: render_pass_data.projection_buffer.as_entire_binding(),
             }],
             label: None,
         });
 
-        surface.configure(&device, &config);
+        let pipeline = Self::create_pipeline(
+            &device,
+            swapchain_format,
+            include_str!("shaders/default.wgsl"),
+            &[&projection_buffer_bind_group_layout],
+        );
 
         Self {
             surface,
@@ -93,11 +166,11 @@ impl State {
             queue,
             config,
             size,
-            pipeline,
             window,
             world,
-            bind_group,
+            projection_bind_group,
             render_pass_data,
+            pipeline,
         }
     }
 
@@ -155,7 +228,7 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.pipeline.render_pipeline);
-            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            render_pass.set_bind_group(0, &self.projection_bind_group, &[]);
             self.world
                 .render(&mut render_pass, &mut self.render_pass_data);
         }

@@ -1,21 +1,28 @@
 use std::iter;
 use winit::{event::*, window::Window};
 
+use crate::world::World;
+
+use super::renderable::Renderable;
+
 pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pipeline: crate::pipeline::Pipeline,
+    pipeline: crate::rendering::pipeline::Pipeline,
+    render_pass_data: crate::rendering::renderable::RenderPassData,
+    bind_group: wgpu::BindGroup,
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     window: Window,
+    world: crate::World,
 }
 
 impl State {
-    pub async fn new(window: Window) -> Self {
+    pub async fn new(window: Window, world: World) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -62,11 +69,21 @@ impl State {
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
         };
-        let pipeline: crate::pipeline::Pipeline = crate::pipeline::Pipeline::new(
-            &device,
-            swapchain_format,
-            include_str!("shaders/default.wgsl"),
-        );
+        let pipeline: crate::rendering::pipeline::Pipeline =
+            crate::rendering::pipeline::Pipeline::new(
+                &device,
+                swapchain_format,
+                include_str!("shaders/default.wgsl"),
+            );
+        let render_pass_data = crate::rendering::renderable::RenderPassData::new(&device);
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &pipeline.render_pipeline.get_bind_group_layout(0),
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: render_pass_data.transform_buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
 
         surface.configure(&device, &config);
 
@@ -78,6 +95,9 @@ impl State {
             size,
             pipeline,
             window,
+            world,
+            bind_group,
+            render_pass_data,
         }
     }
 
@@ -135,7 +155,9 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.pipeline.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            self.world
+                .render(&mut render_pass, &mut self.render_pass_data);
         }
 
         self.queue.submit(iter::once(encoder.finish()));

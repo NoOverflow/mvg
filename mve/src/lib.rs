@@ -4,9 +4,10 @@ use winit::{
     window::WindowBuilder,
 };
 
-mod pipeline;
-mod renderer;
-use renderer::State;
+mod rendering;
+mod world;
+use rendering::renderer::State;
+use world::World;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -15,7 +16,7 @@ pub async fn run() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut state = State::new(window).await;
+    let mut state = State::new(window, World::new()).await;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {

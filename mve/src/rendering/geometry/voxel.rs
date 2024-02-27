@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use cgmath::{Matrix4, Quaternion};
 use wgpu::util::DeviceExt;
 
 use crate::rendering::{
@@ -7,9 +8,11 @@ use crate::rendering::{
     renderable::{RenderPassData, Renderable},
 };
 
-#[derive(Clone)]
+use super::transform::{self, Transform};
+
+#[derive(Clone, Copy)]
 pub struct Voxel {
-    pub position: cgmath::Vector3<f32>,
+    pub transform: Transform,
 }
 
 pub const VERTICES: &[Vertex] = &[
@@ -126,8 +129,10 @@ pub const INDICES: &[u16] = &[
 ];
 
 impl Voxel {
-    pub fn new(position: cgmath::Vector3<f32>) -> Self {
-        Self { position }
+    pub fn new(position: cgmath::Vector3<f32>, rotation: Quaternion<f32>) -> Self {
+        Self {
+            transform: Transform { position, rotation },
+        }
     }
 }
 
@@ -139,6 +144,14 @@ impl Renderable for Voxel {
         render_pass: &mut wgpu::RenderPass<'a>,
         render_pass_data: &'a RenderPassData,
     ) {
+        let transform_matrix: Matrix4<f32> = self.transform.into();
+        let transform_ref: &[f32; 16] = transform_matrix.as_ref();
+
+        render_pass_data.queue.write_buffer(
+            &render_pass_data.transform_buffer,
+            0,
+            bytemuck::cast_slice(transform_ref),
+        );
         render_pass.set_index_buffer(
             render_pass_data.cube_index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,

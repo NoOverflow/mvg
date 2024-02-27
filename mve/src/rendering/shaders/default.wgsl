@@ -7,6 +7,10 @@ struct VertexOutput {
 @binding(0)
 var<uniform> projection: mat4x4<f32>;
 
+@group(1)
+@binding(0)
+var<uniform> transform: mat4x4<f32>;
+
 @vertex
 fn vs_main(
     @location(0) position: vec4<f32>,
@@ -15,7 +19,7 @@ fn vs_main(
     var result: VertexOutput;
 
     result.tex_coord = tex_coord;
-    result.position = projection * position;
+    result.position = projection * transform * position;
     return result;
 }
 

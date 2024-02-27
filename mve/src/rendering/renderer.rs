@@ -13,7 +13,6 @@ pub struct Pipeline {
 pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
-    queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pass_data: crate::rendering::renderable::RenderPassData,
@@ -24,6 +23,7 @@ pub struct State {
 
     // Bind groups
     projection_bind_group: wgpu::BindGroup,
+    transform_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -97,8 +97,6 @@ impl State {
         config
     }
 
-    fn create_bind_groups() {}
-
     pub async fn new(window: Window, world: World) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -127,7 +125,7 @@ impl State {
             .unwrap();
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
-        let render_pass_data = crate::rendering::renderable::RenderPassData::new(&device);
+        let render_pass_data = crate::rendering::renderable::RenderPassData::new(&device, queue);
         let config = Self::configure_surface(size, &device, &surface, &adapter);
 
         let projection_buffer_bind_group_layout =
@@ -144,6 +142,7 @@ impl State {
                     count: None,
                 }],
             });
+
         let projection_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &projection_buffer_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
@@ -153,17 +152,43 @@ impl State {
             label: None,
         });
 
+        let transform_buffer_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(64),
+                    },
+                    count: None,
+                }],
+            });
+
+        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &transform_buffer_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: render_pass_data.transform_buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
+
         let pipeline = Self::create_pipeline(
             &device,
             swapchain_format,
             include_str!("shaders/default.wgsl"),
-            &[&projection_buffer_bind_group_layout],
+            &[
+                &projection_buffer_bind_group_layout,
+                &transform_buffer_bind_group_layout,
+            ],
         );
 
         Self {
             surface,
             device,
-            queue,
             config,
             size,
             window,
@@ -171,6 +196,7 @@ impl State {
             projection_bind_group,
             render_pass_data,
             pipeline,
+            transform_bind_group,
         }
     }
 
@@ -229,11 +255,14 @@ impl State {
 
             render_pass.set_pipeline(&self.pipeline.render_pipeline);
             render_pass.set_bind_group(0, &self.projection_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.transform_bind_group, &[]);
             self.world
                 .render(&mut render_pass, &mut self.render_pass_data);
         }
 
-        self.queue.submit(iter::once(encoder.finish()));
+        self.render_pass_data
+            .queue
+            .submit(iter::once(encoder.finish()));
         output.present();
 
         Ok(())

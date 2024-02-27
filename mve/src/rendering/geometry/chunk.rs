@@ -1,11 +1,11 @@
-use cgmath::Vector3;
+use cgmath::{Quaternion, Vector3, Zero};
 use wgpu::util::DeviceExt;
 
 use crate::rendering::renderable::{RenderPassData, Renderable};
 
 use super::voxel::Voxel;
 
-const CHUNK_SIZE: usize = 2;
+const CHUNK_SIZE: usize = 1;
 
 pub struct Chunk {
     pub voxels: Vec<Voxel>,
@@ -19,11 +19,14 @@ impl Chunk {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
-                    voxels.push(Voxel::new(Vector3::<f32>::new(
-                        position.x + x as f32,
-                        position.y + y as f32,
-                        position.z + z as f32,
-                    )));
+                    voxels.push(Voxel::new(
+                        Vector3::<f32>::new(
+                            position.x + x as f32,
+                            position.y + y as f32,
+                            position.z + z as f32,
+                        ),
+                        Quaternion::<f32>::zero(),
+                    ));
                 }
             }
         }

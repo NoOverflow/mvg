@@ -18,20 +18,6 @@ pub struct RenderPassData {
 }
 
 impl RenderPassData {
-    fn camera_matrix(aspect_ratio: f32) -> cgmath::Matrix4<f32> {
-        let camera = Camera {
-            eye: (2.5, 2.5, 2.5).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: aspect_ratio,
-            fovy: 75.0,
-            znear: 1.0,
-            zfar: 10.0,
-        };
-
-        camera.build_view_projection_matrix()
-    }
-
     pub fn new(device: &Device, queue: Queue) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -45,7 +31,7 @@ impl RenderPassData {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let mx_total = Self::camera_matrix(1024 as f32 / 768 as f32);
+        let mx_total = Matrix4::identity();
         let mx_ref: &[f32; 16] = mx_total.as_ref();
         let projection_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),

@@ -18,7 +18,7 @@ pub struct State {
     render_pass_data: crate::rendering::renderable::RenderPassData,
 
     window: Window,
-    world: crate::World,
+    pub world: crate::World,
     pipeline: Pipeline,
 
     // Bind groups
@@ -186,6 +186,7 @@ impl State {
             ],
         );
 
+        window.set_cursor_visible(false);
         Self {
             surface,
             device,
@@ -256,6 +257,7 @@ impl State {
             render_pass.set_pipeline(&self.pipeline.render_pipeline);
             render_pass.set_bind_group(0, &self.projection_bind_group, &[]);
             render_pass.set_bind_group(1, &self.transform_bind_group, &[]);
+
             self.world
                 .render(&mut render_pass, &mut self.render_pass_data);
         }

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, iter};
+use std::{borrow::Cow, iter, time::Duration};
 use wgpu::{Adapter, Device, Surface, TextureFormat};
 use winit::{event::*, window::Window};
 
@@ -221,7 +221,7 @@ impl State {
 
     pub fn update(&mut self) {}
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, delta: Duration) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture

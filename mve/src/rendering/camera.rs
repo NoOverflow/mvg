@@ -22,6 +22,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 );
 
 impl Camera {
+    // TODO: Separate the projection from the camera, since we only need to compute it when the window is resized
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();

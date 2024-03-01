@@ -1,5 +1,5 @@
 [package]
-name = "mve_native"
+name = "mvg"
 version = "0.1.0"
 edition = "2021"
 

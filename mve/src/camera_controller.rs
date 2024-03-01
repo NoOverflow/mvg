@@ -21,7 +21,7 @@ impl CameraController {
                 znear: 1.0,
                 zfar: 10.0,
             },
-            speed: 0.1,
+            speed: 0.02,
         }
     }
 

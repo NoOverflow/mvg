@@ -1,13 +1,7 @@
 use cgmath::{Deg, Matrix4, Rad, SquareMatrix, Transform3, Zero};
 use wgpu::{util::DeviceExt, Device, Queue};
 
-use super::{
-    camera::Camera,
-    geometry::{
-        transform::Transform,
-        voxel::{self, Voxel},
-    },
-};
+use crate::rendering::geometry::voxel;
 
 pub struct RenderPassData {
     pub cube_vertex_buffer: wgpu::Buffer,

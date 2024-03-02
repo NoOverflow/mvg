@@ -1,5 +1,5 @@
 [workspace]
 members = [
     "mve",
-    "mve_native"
+    "mvg"
 ]

@@ -4,8 +4,8 @@ use cgmath::{Matrix4, Quaternion};
 use wgpu::util::DeviceExt;
 
 use crate::rendering::{
-    primitives::vertex::{self, vertex, Vertex},
-    renderable::{RenderPassData, Renderable},
+    primitives::vertex::Vertex,
+    traits::renderable::{RenderPassData, Renderable},
 };
 
 use super::transform::{self, Transform};

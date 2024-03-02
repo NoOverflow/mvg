@@ -3,7 +3,7 @@ use crate::{
     input_controller::InputController,
     rendering::{
         geometry::chunk::Chunk,
-        renderable::{RenderPassData, Renderable},
+        traits::renderable::{RenderPassData, Renderable},
     },
 };
 use cgmath::{Point3, Vector3};

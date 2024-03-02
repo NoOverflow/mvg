@@ -4,7 +4,7 @@ use winit::{event::*, window::Window};
 
 use crate::world::World;
 
-use super::{primitives::vertex::Vertex, renderable::Renderable};
+use super::{primitives::vertex::Vertex, traits::renderable::Renderable};
 
 pub struct Pipeline {
     render_pipeline: wgpu::RenderPipeline,
@@ -15,7 +15,7 @@ pub struct State {
     device: wgpu::Device,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    render_pass_data: crate::rendering::renderable::RenderPassData,
+    render_pass_data: crate::rendering::traits::renderable::RenderPassData,
 
     window: Window,
     pub world: crate::World,
@@ -125,7 +125,8 @@ impl State {
             .unwrap();
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
-        let render_pass_data = crate::rendering::renderable::RenderPassData::new(&device, queue);
+        let render_pass_data =
+            crate::rendering::traits::renderable::RenderPassData::new(&device, queue);
         let config = Self::configure_surface(size, &device, &surface, &adapter);
 
         let projection_buffer_bind_group_layout =

@@ -1,6 +1,6 @@
 use cgmath::{InnerSpace, Matrix4, Rad, SquareMatrix, Vector3};
 
-use super::renderable::Renderable;
+use super::traits::renderable::Renderable;
 
 pub struct Camera {
     pub eye: cgmath::Point3<f32>,
@@ -44,7 +44,7 @@ impl Renderable for Camera {
     fn render<'a>(
         &self,
         render_pass: &mut wgpu::RenderPass<'a>,
-        render_pass_data: &'a super::renderable::RenderPassData,
+        render_pass_data: &'a super::traits::renderable::RenderPassData,
     ) {
         let project_matrix: Matrix4<f32> = self.build_view_projection_matrix();
         let project_matrix_ref: &[f32; 16] = project_matrix.as_ref();

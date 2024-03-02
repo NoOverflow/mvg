@@ -1,9 +1,8 @@
+use super::voxel::Voxel;
+use crate::rendering::traits::renderable::RenderPassData;
+use crate::rendering::traits::renderable::Renderable;
 use cgmath::{Quaternion, Vector3, Zero};
 use wgpu::util::DeviceExt;
-
-use crate::rendering::renderable::{RenderPassData, Renderable};
-
-use super::voxel::Voxel;
 
 const CHUNK_SIZE: usize = 1;
 
